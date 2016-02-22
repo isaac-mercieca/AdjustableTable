@@ -1,0 +1,1 @@
+{"name":"Dragtable","tagline":"re-order table columns by using drag'n'drop","body":"jquery dragtable\r\n================\r\nsamples : http://akottr.github.io/dragtable\r\n\r\n#### Dependencies\r\n* jQuery\r\n* jQuery UI\r\n  * Core\r\n  * Widget\r\n  * Mouse\r\n  * Sortable\r\n","google":"","note":"Don't delete this file! It's used internally to help with page regeneration."}
