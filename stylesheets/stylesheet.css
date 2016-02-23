@@ -234,22 +234,22 @@ hr {
 }
 
 table {
-    border: 1px solid #373737;
-    margin-bottom: 20px;
+    /*border: 1px solid #373737;*/
+    /*margin-bottom: 20px;*/
     text-align: left;
 }
 
 th {
     font-family: 'Lucida Grande', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    padding: 10px;
+    /*padding: 10px;*/
     background: #373737;
     color: #fff;
 }
 
-td {
-    padding: 10px;
-    border: 1px solid #373737;
-}
+/*td {*/
+    /*padding: 10px;*/
+    /*border: 1px solid #373737;*/
+/*}*/
 
 form {
     background: #f2f2f2;
@@ -420,4 +420,36 @@ Small Device Styles
         font-size: 11px;
     }
 
+}
+
+.example {
+    margin-top: 10px;
+}
+
+/*##### the table stuff #####*/
+table {
+    font-size: 12px;
+    border-collapse: collapse;
+}
+
+td, th {
+    text-align: left;
+    vertical-align: top;
+}
+
+tr {
+    margin: 0;
+    padding: 0;
+}
+
+table td,
+table th {
+    border: 1px solid #CCC;
+    padding: 3px;
+}
+
+/* tables still need 'cellspacing="0"' in the markup */
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
 }

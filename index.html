@@ -5,9 +5,8 @@
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <meta name="description" content="Dragtable : re-order table columns by using drag&#39;n&#39;drop">
-
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
-
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/dragtable.css">
     <title>Dragtable</title>
 </head>
 
@@ -43,9 +42,9 @@
 
         <p>The main idea behind dragtable is to extend the basic HTML table, which will finally allow a user to re-order
             table columns. After a few searches I encountered dragtable, a JQuery plugin developed by akottr using the
-            JQuery UI Widget Factory. After reviewing the source I noticed that the plugin did not fully meet the
-            requirements I had. In addition to this I also noticed that some functionality could me further enhanced to
-            improve the performance. That is when I decided to fork the original repository and make my own
+            JQuery UI Widget Factory. After reviewing the source I noticed that the plugin did not fully meet my
+            requirements. In addition to this I also noticed that some functionality could be further enhanced to
+            improve performance. That is when I decided to fork the original repository and make my own
             improvements. </p>
 
         <h3>
@@ -82,6 +81,53 @@
             Basic Table
         </h3>
 
+        <div class="highlight highlight-source-js">
+            <pre><span class="pl-en">$</span>(<span class="pl-s"><span class="pl-pds">'</span>#basicTable<span
+                    class="pl-pds">'</span></span>).<span class="pl-en">dragtable</span>();</pre>
+        </div>
+
+        <div class="example">
+            <table id="basicTable">
+                <thead>
+                <tr>
+                    <th>TIME</th>
+                    <th>%user</th>
+                    <th>%nice</th>
+                    <th>%system</th>
+                    <th>%iowait</th>
+                    <th>%idle</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                <tr>
+                    <td>12:10:01 AM</td>
+                    <td>28.86</td>
+                    <td>0.04</td>
+                    <td>1.65</td>
+                    <td>0.08</td>
+                    <td>69.36</td>
+                </tr>
+                <tr>
+                    <td>12:20:01 AM</td>
+                    <td>26.54</td>
+                    <td>0.00</td>
+                    <td>1.64</td>
+                    <td>0.08</td>
+                    <td>71.74</td>
+
+                </tr>
+                <tr>
+                    <td>12:30:01 AM</td>
+                    <td>29.73</td>
+                    <td>0.00</td>
+                    <td>1.66</td>
+                    <td>0.09</td>
+                    <td>68.52</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 </div>
 
@@ -89,10 +135,12 @@
 <div id="footer_wrap" class="outer">
     <footer class="inner">
         <p class="copyright">Dragtable maintained by <a href="https://github.com/isaac-mercieca">isaac-mercieca</a></p>
-        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
     </footer>
 </div>
 
-
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/jquery-ui.min.js"></script>
+<script src="javascripts/jquery.dragtable.js"></script>
+<script src="javascripts/main.js"></script>
 </body>
 </html>
