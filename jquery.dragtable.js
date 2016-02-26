@@ -113,39 +113,39 @@
                 this._bubbleCols();
             }
         },
-        // bubble the moved col left or right
+
+        // bubble the moved column left or right
         _bubbleCols: function () {
-            var i, j, col1, col2;
             var from = this.originalTable.startIndex;
             var to = this.originalTable.endIndex;
-            /* Find children thead and tbody.
-             * Only to process the immediate tr-children. Bugfix for inner tables
-             */
-            var thtb = this.originalTable.el.children();
-            if (this.options.excludeFooter) {
-                thtb = thtb.not('tfoot');
-            }
-            if (from < to) {
-                for (i = from; i < to; i++) {
-                    col1 = thtb.find('> tr > td:nth-child(' + i + ')')
-                        .add(thtb.find('> tr > th:nth-child(' + i + ')'));
-                    col2 = thtb.find('> tr > td:nth-child(' + (i + 1) + ')')
-                        .add(thtb.find('> tr > th:nth-child(' + (i + 1) + ')'));
-                    for (j = 0; j < col1.length; j++) {
-                        swapNodes(col1[j], col2[j]);
+
+            // If dragged column was dragged back in its original place then there is no need to bubble columns
+            // else bubble any effected columns
+            if (from !== to) {
+
+                var i, j, cols;
+
+                // Gets all the table rows, using the jQuery children to only get the direct descendants
+                var rows = this.options.excludeFooter ? this.originalTable.el.children().not('tfoot').children()
+                    : this.originalTable.el.children().children();
+
+                if (from < to) {
+                    for (j = 0; j < rows.length; j++) {
+                        cols = rows[j].children;
+                        for (i = from; i < to; i++) {
+                            swapNodes(cols[i-1], cols[i]);
+                        }
+                    }
+                } else {
+                    for (j = 0; j < rows.length; j++) {
+                        cols = rows[j].children;
+                        for (i = from; i > to; i--) {
+                            swapNodes(cols[i-1], cols[i-2]);
+                        }
                     }
                 }
-            } else {
-                for (i = from; i > to; i--) {
-                    col1 = thtb.find('> tr > td:nth-child(' + i + ')')
-                        .add(thtb.find('> tr > th:nth-child(' + i + ')'));
-                    col2 = thtb.find('> tr > td:nth-child(' + (i - 1) + ')')
-                        .add(thtb.find('> tr > th:nth-child(' + (i - 1) + ')'));
-                    for (j = 0; j < col1.length; j++) {
-                        swapNodes(col1[j], col2[j]);
-                    }
-                }
             }
+
         },
         _rearrangeTableBackgroundProcessing: function () {
             var _this = this;
@@ -203,7 +203,7 @@
 
             var tableFooter = this.originalTable.el.children('tfoot');
             var tableFooterRows = null;
-            if (this.options.excludeFooter && tableFooter.length > 0) {
+            if (!this.options.excludeFooter && tableFooter.length > 0) {
                 tableFooterRows = tableFooter[0].children;
             }
 
@@ -365,7 +365,8 @@
         if (window.getSelection) {
             window.getSelection().removeAllRanges();
         } else {
-            document.selection.empty(); // MSIE http://msdn.microsoft.com/en-us/library/ms535869%28v=VS.85%29.aspx
+            // MSIE http://msdn.microsoft.com/en-us/library/ms535869%28v=VS.85%29.aspx
+            document.selection.empty();
         }
     }
 
