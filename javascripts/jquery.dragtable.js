@@ -88,6 +88,7 @@
             selectedHandle: $(),
             movingRow: $()
         },
+
         persistState: function () {
             var _this = this;
             this.originalTable.el.find('th').each(function (i) {
@@ -100,6 +101,7 @@
                 data: this.originalTable.sortOrder
             });
         },
+
         /*
          * persistObj looks like
          * {'id1':'2','id3':'3','id2':'1'}
@@ -113,40 +115,41 @@
                 this._bubbleCols();
             }
         },
-        // bubble the moved col left or right
+
+        // bubble the moved column left or right
         _bubbleCols: function () {
-            var i, j, col1, col2;
             var from = this.originalTable.startIndex;
             var to = this.originalTable.endIndex;
-            /* Find children thead and tbody.
-             * Only to process the immediate tr-children. Bugfix for inner tables
-             */
-            var thtb = this.originalTable.el.children();
-            if (this.options.excludeFooter) {
-                thtb = thtb.not('tfoot');
-            }
-            if (from < to) {
-                for (i = from; i < to; i++) {
-                    col1 = thtb.find('> tr > td:nth-child(' + i + ')')
-                        .add(thtb.find('> tr > th:nth-child(' + i + ')'));
-                    col2 = thtb.find('> tr > td:nth-child(' + (i + 1) + ')')
-                        .add(thtb.find('> tr > th:nth-child(' + (i + 1) + ')'));
-                    for (j = 0; j < col1.length; j++) {
-                        swapNodes(col1[j], col2[j]);
+
+            // If dragged column was dragged back in its original place then there is no need to bubble columns
+            // else bubble any effected columns
+            if (from !== to) {
+
+                var i, j, cols;
+
+                // Gets all the table rows, using the jQuery children to only get the direct descendants
+                var rows = this.options.excludeFooter ? this.originalTable.el.children().not('tfoot').children()
+                    : this.originalTable.el.children().children();
+
+                if (from < to) {
+                    for (j = 0; j < rows.length; j++) {
+                        cols = rows[j].children;
+                        for (i = from; i < to; i++) {
+                            swapNodes(cols[i-1], cols[i]);
+                        }
+                    }
+                } else {
+                    for (j = 0; j < rows.length; j++) {
+                        cols = rows[j].children;
+                        for (i = from; i > to; i--) {
+                            swapNodes(cols[i-1], cols[i-2]);
+                        }
                     }
                 }
-            } else {
-                for (i = from; i > to; i--) {
-                    col1 = thtb.find('> tr > td:nth-child(' + i + ')')
-                        .add(thtb.find('> tr > th:nth-child(' + i + ')'));
-                    col2 = thtb.find('> tr > td:nth-child(' + (i - 1) + ')')
-                        .add(thtb.find('> tr > th:nth-child(' + (i - 1) + ')'));
-                    for (j = 0; j < col1.length; j++) {
-                        swapNodes(col1[j], col2[j]);
-                    }
-                }
             }
+
         },
+
         _rearrangeTableBackgroundProcessing: function () {
             var _this = this;
             return function () {
@@ -156,18 +159,22 @@
                 restoreTextSelection();
                 // persist state if necessary
                 if (_this.options.persistState !== null) {
-                    $.isFunction(_this.options.persistState) ? _this.options.persistState(_this.originalTable) : _this.persistState();
+                    if (typeof(_this.options.persistState) === 'function') {
+                        _this.options.persistState(_this.originalTable);
+                    } else {
+                        _this.persistState();
+                    }
                 }
             };
         },
+
         _rearrangeTable: function () {
             var _this = this;
             return function () {
                 // remove handler-class -> handler is now finished
                 _this.originalTable.selectedHandle.removeClass('dragtable-handle-selected');
-                // add disabled class -> reorgorganisation starts soon
-                _this.sortableTable.el.sortable("disable");
-                _this.sortableTable.el.addClass('dragtable-disabled');
+                // add disabled class -> reorganisation starts soon
+                _this.sortableTable.el.sortable("disable").addClass('dragtable-disabled');
                 _this.options.beforeReorganize(_this.originalTable, _this.sortableTable);
                 // do reorganisation asynchronous
                 // for chrome a little bit more than 1 ms because we want to force a re-render
@@ -175,6 +182,7 @@
                 setTimeout(_this._rearrangeTableBackgroundProcessing(), 50);
             };
         },
+
         /*
          * Disrupts the table. The original table stays the same.
          * But on a layer above the original table we are constructing a list (ul > li)
@@ -203,7 +211,7 @@
 
             var tableFooter = this.originalTable.el.children('tfoot');
             var tableFooterRows = null;
-            if (this.options.excludeFooter && tableFooter.length > 0) {
+            if (!this.options.excludeFooter && tableFooter.length > 0) {
                 tableFooterRows = tableFooter[0].children;
             }
 
@@ -297,7 +305,9 @@
             }));
 
         },
+
         bindTo: {},
+
         _create: function () {
             this.originalTable = {
                 el: this.element,
@@ -306,24 +316,35 @@
                 startIndex: 0,
                 endIndex: 0
             };
+
             // bind draggable to 'th' by default
             this.bindTo = this.originalTable.el.find('th');
+
             // filter only the cols that are accepted
             if (this.options.dragaccept) {
                 this.bindTo = this.bindTo.filter(this.options.dragaccept);
             }
+
             // bind draggable to handle if exists
             if (this.bindTo.find(this.options.dragHandle).size() > 0) {
                 this.bindTo = this.bindTo.find(this.options.dragHandle);
             }
+
             // restore state if necessary
             if (this.options.restoreState !== null) {
-                $.isFunction(this.options.restoreState) ? this.options.restoreState(this.originalTable) : this._restoreState(this.options.restoreState);
+                if (typeof(this.options.restoreState) === 'function') {
+                    this.options.restoreState(this.originalTable);
+                } else {
+                    this._restoreState(this.options.restoreState);
+                }
             }
+
             var _this = this;
+
             this.bindTo.mousedown(function (evt) {
                 // listen only to left mouse click
                 if (evt.which !== 1) return;
+
                 if (_this.options.beforeStart(_this.originalTable) === false) {
                     return;
                 }
@@ -336,14 +357,18 @@
             }).mouseup(function (evt) {
                 clearTimeout(this.downTimer);
             });
+
         },
+
         redraw: function () {
             this.destroy();
             this._create();
         },
+
         destroy: function () {
             this.bindTo.unbind('mousedown');
-            $.Widget.prototype.destroy.apply(this, arguments); // default destroy
+            // default destroy
+            $.Widget.prototype.destroy.apply(this, arguments);
             // now do other stuff particular to this widget
         }
     });
@@ -365,7 +390,8 @@
         if (window.getSelection) {
             window.getSelection().removeAllRanges();
         } else {
-            document.selection.empty(); // MSIE http://msdn.microsoft.com/en-us/library/ms535869%28v=VS.85%29.aspx
+            // MSIE http://msdn.microsoft.com/en-us/library/ms535869%28v=VS.85%29.aspx
+            document.selection.empty();
         }
     }
 
@@ -396,6 +422,8 @@
         var tableSection = document.createElement(sectionTagName);
         for (var row=0; row < sectionRows.length; row++) {
             var rowElm = sectionRows[row].cloneNode(false);
+            var height = $(sectionRows[row]).outerHeight();
+            rowElm.style.height = height + 'px';
             rowElm.appendChild(sectionRows[row].children[columnIndex].cloneNode(true));
             tableSection.appendChild(rowElm);
         }
