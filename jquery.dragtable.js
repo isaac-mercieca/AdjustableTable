@@ -88,6 +88,7 @@
             selectedHandle: $(),
             movingRow: $()
         },
+
         persistState: function () {
             var _this = this;
             this.originalTable.el.find('th').each(function (i) {
@@ -100,6 +101,7 @@
                 data: this.originalTable.sortOrder
             });
         },
+
         /*
          * persistObj looks like
          * {'id1':'2','id3':'3','id2':'1'}
@@ -147,6 +149,7 @@
             }
 
         },
+
         _rearrangeTableBackgroundProcessing: function () {
             var _this = this;
             return function () {
@@ -156,18 +159,22 @@
                 restoreTextSelection();
                 // persist state if necessary
                 if (_this.options.persistState !== null) {
-                    $.isFunction(_this.options.persistState) ? _this.options.persistState(_this.originalTable) : _this.persistState();
+                    if (typeof(_this.options.persistState) === 'function') {
+                        _this.options.persistState(_this.originalTable);
+                    } else {
+                        _this.persistState();
+                    }
                 }
             };
         },
+
         _rearrangeTable: function () {
             var _this = this;
             return function () {
                 // remove handler-class -> handler is now finished
                 _this.originalTable.selectedHandle.removeClass('dragtable-handle-selected');
-                // add disabled class -> reorgorganisation starts soon
-                _this.sortableTable.el.sortable("disable");
-                _this.sortableTable.el.addClass('dragtable-disabled');
+                // add disabled class -> reorganisation starts soon
+                _this.sortableTable.el.sortable("disable").addClass('dragtable-disabled');
                 _this.options.beforeReorganize(_this.originalTable, _this.sortableTable);
                 // do reorganisation asynchronous
                 // for chrome a little bit more than 1 ms because we want to force a re-render
@@ -175,6 +182,7 @@
                 setTimeout(_this._rearrangeTableBackgroundProcessing(), 50);
             };
         },
+
         /*
          * Disrupts the table. The original table stays the same.
          * But on a layer above the original table we are constructing a list (ul > li)
@@ -297,7 +305,9 @@
             }));
 
         },
+
         bindTo: {},
+
         _create: function () {
             this.originalTable = {
                 el: this.element,
@@ -306,24 +316,35 @@
                 startIndex: 0,
                 endIndex: 0
             };
+
             // bind draggable to 'th' by default
             this.bindTo = this.originalTable.el.find('th');
+
             // filter only the cols that are accepted
             if (this.options.dragaccept) {
                 this.bindTo = this.bindTo.filter(this.options.dragaccept);
             }
+
             // bind draggable to handle if exists
             if (this.bindTo.find(this.options.dragHandle).size() > 0) {
                 this.bindTo = this.bindTo.find(this.options.dragHandle);
             }
+
             // restore state if necessary
             if (this.options.restoreState !== null) {
-                $.isFunction(this.options.restoreState) ? this.options.restoreState(this.originalTable) : this._restoreState(this.options.restoreState);
+                if (typeof(this.options.restoreState) === 'function') {
+                    this.options.restoreState(this.originalTable);
+                } else {
+                    this._restoreState(this.options.restoreState);
+                }
             }
+
             var _this = this;
+
             this.bindTo.mousedown(function (evt) {
                 // listen only to left mouse click
                 if (evt.which !== 1) return;
+
                 if (_this.options.beforeStart(_this.originalTable) === false) {
                     return;
                 }
@@ -336,14 +357,18 @@
             }).mouseup(function (evt) {
                 clearTimeout(this.downTimer);
             });
+
         },
+
         redraw: function () {
             this.destroy();
             this._create();
         },
+
         destroy: function () {
             this.bindTo.unbind('mousedown');
-            $.Widget.prototype.destroy.apply(this, arguments); // default destroy
+            // default destroy
+            $.Widget.prototype.destroy.apply(this, arguments);
             // now do other stuff particular to this widget
         }
     });
@@ -397,6 +422,8 @@
         var tableSection = document.createElement(sectionTagName);
         for (var row=0; row < sectionRows.length; row++) {
             var rowElm = sectionRows[row].cloneNode(false);
+            var height = $(sectionRows[row]).outerHeight();
+            rowElm.style.height = height + 'px';
             rowElm.appendChild(sectionRows[row].children[columnIndex].cloneNode(true));
             tableSection.appendChild(rowElm);
         }
