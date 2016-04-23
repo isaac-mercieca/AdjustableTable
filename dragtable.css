@@ -42,3 +42,11 @@
     opacity: 0.0;
     visibility: hidden;
 }
+
+.disable-select {
+    -ms-user-select: none;
+    -moz-user-select: -moz-none;
+    -khtml-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+}

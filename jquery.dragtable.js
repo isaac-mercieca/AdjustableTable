@@ -14,44 +14,6 @@
  * Feel free to contact me.
  */
 
-/* TOKNOW:
- * For IE7 you need this css rule:
- * table {
- *   border-collapse: collapse;
- * }
- * Or take a clean reset.css (see http://meyerweb.com/eric/tools/css/reset/)
- */
-
-/* TODO: investigate
- * Does not work properly with css rule:
- * html {
- *      overflow: -moz-scrollbars-vertical;
- *  }
- * Workaround:
- * Fixing Firefox issues by scrolling down the page
- * http://stackoverflow.com/questions/2451528/jquery-ui-sortable-scroll-helper-element-offset-firefox-issue
- *
- * var start = $.noop;
- * var beforeStop = $.noop;
- * if($.browser.mozilla) {
- * var start = function (event, ui) {
- *               if( ui.helper !== undefined )
- *                 ui.helper.css('position','absolute').css('margin-top', $(window).scrollTop() );
- *               }
- * var beforeStop = function (event, ui) {
- *              if( ui.offset !== undefined )
- *                ui.helper.css('margin-top', 0);
- *              }
- * }
- *
- * and pass this as start and stop function to the sortable initialisation
- * start: start,
- * beforeStop: beforeStop
- */
-/*
- * Special thx to all pull requests comitters
- */
-
 (function ($) {
     $.widget("akottr.dragtable", {
         options: {
@@ -59,8 +21,7 @@
             dragHandle: '.table-handle', // handle for moving cols, if not exists the whole 'th' is the handle
             maxMovingRows: 40,           // 1 -> only header. 40 row should be enough, the rest is usually not in the viewport
             excludeFooter: false,        // excludes the footer row(s) while moving other columns. Make sense if there is a footer with a colspan. */
-            onlyHeaderThreshold: 100,    // TODO:  not implemented yet, switch automatically between entire col moving / only header moving
-            dragaccept: null,            // draggable cols -> default all
+            dragAccept: null,            // draggable cols -> default all
             persistState: null,          // url or function -> plug in your custom persistState function right here. function call is persistState(originalTable)
             restoreState: null,          // JSON-Object or function:  some kind of experimental aka Quick-Hack TODO: do it better
             exact: true,                 // removes pixels, so that the overlay table width fits exactly the original table width
@@ -76,29 +37,23 @@
             beforeReorganize: $.noop,
             beforeStop: $.noop
         },
-        originalTable: {
-            el: null,
-            selectedHandle: null,
-            sortOrder: null,
-            startIndex: 0,
-            endIndex: 0
-        },
         sortableTable: {
             el: $(),
             selectedHandle: $(),
-            movingRow: $()
+            movingRow: $(),
+            columnMapping: []
         },
 
-        persistState: function () {
+        _persistState: function () {
             var _this = this;
-            this.originalTable.el.find('th').each(function (i) {
+            this.element.find('th').each(function (i) {
                 if (this.id !== '') {
-                    _this.originalTable.sortOrder[this.id] = i;
+                    _this._sortOrder[this.id] = i;
                 }
             });
             $.ajax({
                 url: this.options.persistState,
-                data: this.originalTable.sortOrder
+                data: this._sortOrder
             });
         },
 
@@ -110,16 +65,16 @@
          */
         _restoreState: function (persistObj) {
             for (var n in persistObj) {
-                this.originalTable.startIndex = $('#' + n).closest('th').prevAll().size() + 1;
-                this.originalTable.endIndex = parseInt(persistObj[n], 10) + 1;
+                this._startIndex = $('#' + n).closest('th').prevAll().size() + 1;
+                this._endIndex = parseInt(persistObj[n], 10) + 1;
                 this._bubbleCols();
             }
         },
 
         // bubble the moved column left or right
         _bubbleCols: function () {
-            var from = this.originalTable.startIndex;
-            var to = this.originalTable.endIndex;
+            var from = this._startIndex;
+            var to = this._endIndex;
 
             // If dragged column was dragged back in its original place then there is no need to bubble columns
             // else bubble any effected columns
@@ -128,21 +83,21 @@
                 var i, j, cols;
 
                 // Gets all the table rows, using the jQuery children to only get the direct descendants
-                var rows = this.options.excludeFooter ? this.originalTable.el.children().not('tfoot').children()
-                    : this.originalTable.el.children().children();
+                var rows = this.options.excludeFooter ? this.element.children().not('tfoot').children()
+                    : this.element.children().children();
 
                 if (from < to) {
                     for (j = 0; j < rows.length; j++) {
                         cols = rows[j].children;
                         for (i = from; i < to; i++) {
-                            swapNodes(cols[i-1], cols[i]);
+                            this._swapNodes(cols[i - 1], cols[i]);
                         }
                     }
                 } else {
                     for (j = 0; j < rows.length; j++) {
                         cols = rows[j].children;
                         for (i = from; i > to; i--) {
-                            swapNodes(cols[i-1], cols[i-2]);
+                            this._swapNodes(cols[i - 1], cols[i - 2]);
                         }
                     }
                 }
@@ -153,16 +108,33 @@
         _rearrangeTableBackgroundProcessing: function () {
             var _this = this;
             return function () {
-                _this._bubbleCols();
-                _this.options.beforeStop(_this.originalTable);
+                if (_this._startIndex != _this._endIndex) {
+                    var columnMapping = [];
+                    for (var i = 0; i < _this.sortableTable.columnMapping.length; i++) {
+                        var index = $(_this.sortableTable.columnMapping[i].handle).index();
+                        if (i != index) {
+                            columnMapping.push({
+                                'handle': _this.element.find('thead > tr > th').eq(_this.sortableTable.columnMapping[i].originalPosition),
+                                'originalPosition': i,
+                                'newPosition': index,
+                                'originalPositionDragAccept': _this.sortableTable.columnMapping[i].originalPositionDragAccept,
+                                'newPositionDragAccept': $(_this.sortableTable.columnMapping[i].handle).prevAll('li.ui-sortable-handle').length
+                            });
+                        }
+                    }
+                    _this._bubbleCols();
+                    _this.options.beforeStop(true, columnMapping);
+                } else {
+                    _this.options.beforeStop(false);
+                }
                 _this.sortableTable.el.remove();
-                restoreTextSelection();
+                _this._restoreTextSelection();
                 // persist state if necessary
                 if (_this.options.persistState !== null) {
                     if (typeof(_this.options.persistState) === 'function') {
-                        _this.options.persistState(_this.originalTable);
+                        _this.options.persistState();
                     } else {
-                        _this.persistState();
+                        _this._persistState();
                     }
                 }
             };
@@ -172,13 +144,13 @@
             var _this = this;
             return function () {
                 // remove handler-class -> handler is now finished
-                _this.originalTable.selectedHandle.removeClass('dragtable-handle-selected');
+                _this._selectedHandle.removeClass('dragtable-handle-selected');
                 // add disabled class -> reorganisation starts soon
-                _this.sortableTable.el.sortable("disable").addClass('dragtable-disabled');
-                _this.options.beforeReorganize(_this.originalTable, _this.sortableTable);
+                _this.sortableTable.el.sortable('disable').addClass('dragtable-disabled');
+                _this.options.beforeReorganize();
                 // do reorganisation asynchronous
                 // for chrome a little bit more than 1 ms because we want to force a re-render
-                _this.originalTable.endIndex = _this.sortableTable.movingRow.prevAll().size() + 1;
+                _this._endIndex = _this.sortableTable.movingRow.prevAll().size() + 1;
                 setTimeout(_this._rearrangeTableBackgroundProcessing(), 50);
             };
         },
@@ -191,25 +163,27 @@
         _generateSortable: function (e) {
             !e.cancelBubble && (e.cancelBubble = true);
 
-            var tempSortableTable = this.originalTable.el[0].cloneNode(false);
+            var _this = this;
+
+            var tempSortableTable = this.element[0].cloneNode(false);
             tempSortableTable.removeAttribute('id');
 
             var maxMovingRows = this.options.maxMovingRows;
 
-            var tableHeader = this.originalTable.el.children('thead');
+            var tableHeader = this.element.children('thead');
             var tableHeaderRows = null;
             if (tableHeader.length > 0) {
-                tableHeaderRows = Array.prototype.slice.call( tableHeader[0].children, 0 , maxMovingRows );
+                tableHeaderRows = Array.prototype.slice.call(tableHeader[0].children, 0, maxMovingRows);
                 maxMovingRows = maxMovingRows - tableHeaderRows.length;
             }
 
-            var tableBody = this.originalTable.el.children('tbody');
+            var tableBody = this.element.children('tbody');
             var tableBodyRows = null;
             if (maxMovingRows > 1 && tableBody.length > 0) {
-                tableBodyRows = Array.prototype.slice.call( tableBody[0].children, 0 , maxMovingRows );
+                tableBodyRows = Array.prototype.slice.call(tableBody[0].children, 0, maxMovingRows);
             }
 
-            var tableFooter = this.originalTable.el.children('tfoot');
+            var tableFooter = this.element.children('tfoot');
             var tableFooterRows = null;
             if (!this.options.excludeFooter && tableFooter.length > 0) {
                 tableFooterRows = tableFooter[0].children;
@@ -222,10 +196,10 @@
             // compute total width, needed for not wrapping around after the screen ends (floating)
             var totalWidth = 0;
 
-            var firstRowColumns = this.originalTable.el.find('tr').first().children();
+            var firstRowColumns = this.element.find('tr').first().children();
 
             // Build the sortable ul element
-            firstRowColumns.each(function (i, v) {
+            firstRowColumns.each( function ( columnIndex, _ ) {
 
                 var columnWidth = $(this).outerWidth();
                 totalWidth += columnWidth;
@@ -235,24 +209,30 @@
 
                 var sortableTable = tempSortableTable.cloneNode(false);
 
-                if(tableHeaderRows !== null) {
-                    cloneTableColumn(sortableTable, 'thead', tableHeaderRows, i);
+                if (tableHeaderRows !== null) {
+                    _this._cloneTableColumn(sortableTable, 'thead', tableHeaderRows, columnIndex);
                 }
 
                 if (tableBodyRows !== null) {
-                    cloneTableColumn(sortableTable, 'tbody', tableBodyRows, i);
+                    _this._cloneTableColumn(sortableTable, 'tbody', tableBodyRows, columnIndex);
                 }
 
-                if (tableFooterRows !== null){
-                    cloneTableColumn(sortableTable, 'tfoot', tableFooterRows, i);
+                if (tableFooterRows !== null) {
+                    _this._cloneTableColumn(sortableTable, 'tfoot', tableFooterRows, columnIndex);
                 }
 
                 sortableTableLi.appendChild(sortableTable);
                 sortableUl.appendChild(sortableTableLi);
+
+                _this.sortableTable.columnMapping[columnIndex] = {
+                    'handle': sortableTableLi,
+                    'originalPosition': columnIndex,
+                    'originalPositionDragAccept': _this.options.dragAccept ? $(this).prevAll(_this.options.dragAccept).length : columnIndex
+                };
             });
 
             if (this.options.exact) {
-                var difference = totalWidth - this.originalTable.el.outerWidth();
+                var difference = totalWidth - this.element.outerWidth();
                 var firstColumnLi = sortableUl.children[0];
                 var width = parseInt(firstColumnLi.style.width) - difference;
                 firstColumnLi.children[0].style.width = width + 'px';
@@ -264,12 +244,12 @@
 
             sortableUl.style.width = totalWidth + 'px';
 
-            this.sortableTable.el = this.originalTable.el.before(sortableUl).prev();
+            this.sortableTable.el = this.element.before(sortableUl).prev();
 
             // assign this.sortableTable.selectedHandle
             this.sortableTable.selectedHandle = this.sortableTable.el.find('th .dragtable-handle-selected');
 
-            var items = this.options.dragaccept ? 'li:has(' + this.options.dragaccept + ')' : 'li';
+            var items = this.options.dragAccept ? 'li:has(' + this.options.dragAccept + ')' : 'li';
 
             this.sortableTable.el.sortable({
                 items: items,
@@ -285,14 +265,16 @@
             });
 
             // assign start index
-            this.originalTable.startIndex = $(e.target).closest('th').prevAll().size() + 1;
+            this._startIndex = $(e.target).closest('th').prevAll().size() + 1;
 
-            this.options.beforeMoving(this.originalTable, this.sortableTable);
+            this.options.beforeMoving();
+
             // Start moving by delegating the original event to the new sortable table
-            this.sortableTable.movingRow = this.sortableTable.el.children('li:nth-child(' + this.originalTable.startIndex + ')');
+            this.sortableTable.movingRow = this.sortableTable.el.children('li:nth-child(' + this._startIndex + ')');
 
             // prevent the user from drag selecting "highlighting" surrounding page elements
-            disableTextSelection();
+            this._disableTextSelection();
+
             // clone the initial event and trigger the sort with it
             this.sortableTable.movingRow.trigger($.extend($.Event(e.type), {
                 which: 1,
@@ -306,34 +288,33 @@
 
         },
 
-        bindTo: {},
-
         _create: function () {
-            this.originalTable = {
-                el: this.element,
-                selectedHandle: $(),
-                sortOrder: {},
-                startIndex: 0,
-                endIndex: 0
-            };
+            // initialize global variables
+            this._startIndex = 0;
+            this._endIndex = 0;
+            this._sortOrder = {};
+
+
+            this._bodyOnSelectStart = $(document.body).attr('onselectstart');
+            this._bodyUnSelectable = $(document.body).attr('unselectable');
 
             // bind draggable to 'th' by default
-            this.bindTo = this.originalTable.el.find('th');
+            this._bindTo = this.element.find('th');
 
             // filter only the cols that are accepted
-            if (this.options.dragaccept) {
-                this.bindTo = this.bindTo.filter(this.options.dragaccept);
+            if (this.options.dragAccept) {
+                this._bindTo = this._bindTo.filter(this.options.dragAccept);
             }
 
             // bind draggable to handle if exists
-            if (this.bindTo.find(this.options.dragHandle).size() > 0) {
-                this.bindTo = this.bindTo.find(this.options.dragHandle);
+            if (this._bindTo.find(this.options.dragHandle).size() > 0) {
+                this._bindTo = this._bindTo.find(this.options.dragHandle);
             }
 
             // restore state if necessary
             if (this.options.restoreState !== null) {
                 if (typeof(this.options.restoreState) === 'function') {
-                    this.options.restoreState(this.originalTable);
+                    this.options.restoreState();
                 } else {
                     this._restoreState(this.options.restoreState);
                 }
@@ -341,22 +322,84 @@
 
             var _this = this;
 
-            this.bindTo.mousedown(function (evt) {
+            this._bindTo.mousedown(function (evt) {
                 // listen only to left mouse click
-                if (evt.which !== 1) return;
+                if (evt.which === 1) {
 
-                if (_this.options.beforeStart(_this.originalTable) === false) {
-                    return;
+                    if (_this.options.beforeStart() === false) {
+                        return;
+                    }
+
+                    clearTimeout(_this.downTimer);
+
+                    var srcElement = evt.target ? evt.target : evt.srcElement;
+
+                    _this.downTimer = setTimeout(function () {
+                        _this._selectedHandle = $(srcElement).addClass('dragtable-handle-selected');
+                        _this._generateSortable(evt);
+                    }, _this.options.clickDelay);
+
                 }
-                clearTimeout(this.downTimer);
-                this.downTimer = setTimeout(function () {
-                    _this.originalTable.selectedHandle = $(this);
-                    _this.originalTable.selectedHandle.addClass('dragtable-handle-selected');
-                    _this._generateSortable(evt);
-                }, _this.options.clickDelay);
-            }).mouseup(function (evt) {
-                clearTimeout(this.downTimer);
+
+            }).mouseup(function () {
+                clearTimeout(_this.downTimer);
             });
+
+        },
+
+        _swapNodes: function (a, b) {
+            var aParent = a.parentNode;
+            var aSibling = a.nextSibling === b ? a : a.nextSibling;
+            b.parentNode.insertBefore(a, b);
+            aParent.insertBefore(b, aSibling);
+        },
+
+        _cloneTableColumn: function (parentTable, sectionTagName, sectionRows, columnIndex) {
+            var tableSection = document.createElement(sectionTagName);
+            for (var row = 0; row < sectionRows.length; row++) {
+                var rowElm = sectionRows[row].cloneNode(false);
+                var height = $(sectionRows[row]).outerHeight();
+                rowElm.style.height = height + 'px';
+                rowElm.appendChild(sectionRows[row].children[columnIndex].cloneNode(true));
+                tableSection.appendChild(rowElm);
+            }
+            parentTable.appendChild(tableSection);
+        },
+
+        // A helper function which applies adds a CSS class to disable user selection
+        // and removes any selections currently in the document
+
+        _disableTextSelection: function () {
+            // jQuery doesn't support the element.text attribute in MSIE 8
+            // http://stackoverflow.com/questions/2692770/style-style-textcss-appendtohead-does-not-work-in-ie
+            $(document.body).addClass('disable-select').attr({'onselectstart': 'return false;', 'unselectable': 'on'});
+
+            if (window.getSelection) {
+                window.getSelection().removeAllRanges();
+            } else {
+                // MSIE http://msdn.microsoft.com/en-us/library/ms535869%28v=VS.85%29.aspx
+                document.selection.empty();
+            }
+        },
+
+        // Removes the added class for disabling text selection,
+        // and restores the selection attributes to the document body
+
+        _restoreTextSelection: function () {
+
+            $(document.body).removeClass('disable-select');
+
+            if (this._bodyOnSelectStart) {
+                $(document.body).attr('onselectstart', this._bodyOnSelectStart);
+            } else {
+                $(document.body).removeAttr('onselectstart');
+            }
+
+            if (this._bodyUnSelectable) {
+                $(document.body).attr('unselectable', this._bodyUnSelectable);
+            } else {
+                $(document.body).removeAttr('unselectable');
+            }
 
         },
 
@@ -366,68 +409,11 @@
         },
 
         destroy: function () {
-            this.bindTo.unbind('mousedown');
+            this._bindTo.off('mousedown', 'mouseup');
             // default destroy
             $.Widget.prototype.destroy.apply(this, arguments);
             // now do other stuff particular to this widget
         }
     });
-
-    /** closure-scoped "private" functions **/
-
-    var body_onselectstart_save = $(document.body).attr('onselectstart'),
-        body_unselectable_save = $(document.body).attr('unselectable');
-
-    // css properties to disable user-select on the body tag by appending a <style> tag to the <head>
-    // remove any current document selections
-
-    function disableTextSelection() {
-        // jQuery doesn't support the element.text attribute in MSIE 8
-        // http://stackoverflow.com/questions/2692770/style-style-textcss-appendtohead-does-not-work-in-ie
-        var $style = $('<style id="__dragtable_disable_text_selection__" type="text/css">body { -ms-user-select:none;-moz-user-select:-moz-none;-khtml-user-select:none;-webkit-user-select:none;user-select:none; }</style>');
-        $(document.head).append($style);
-        $(document.body).attr({'onselectstart': 'return false;', 'unselectable': 'on'});
-        if (window.getSelection) {
-            window.getSelection().removeAllRanges();
-        } else {
-            // MSIE http://msdn.microsoft.com/en-us/library/ms535869%28v=VS.85%29.aspx
-            document.selection.empty();
-        }
-    }
-
-    // remove the <style> tag, and restore the original <body> onselectstart attribute
-
-    function restoreTextSelection() {
-        $('#__dragtable_disable_text_selection__').remove();
-        if (body_onselectstart_save) {
-            $(document.body).attr('onselectstart', body_onselectstart_save);
-        } else {
-            $(document.body).removeAttr('onselectstart');
-        }
-        if (body_unselectable_save) {
-            $(document.body).attr('unselectable', body_unselectable_save);
-        } else {
-            $(document.body).removeAttr('unselectable');
-        }
-    }
-
-    function swapNodes(a, b) {
-        var aParent = a.parentNode;
-        var aSibling = a.nextSibling === b ? a : a.nextSibling;
-        b.parentNode.insertBefore(a, b);
-        aParent.insertBefore(b, aSibling);
-    }
-
-    function cloneTableColumn(parentTable, sectionTagName, sectionRows, columnIndex) {
-        var tableSection = document.createElement(sectionTagName);
-        for (var row=0; row < sectionRows.length; row++) {
-            var rowElm = sectionRows[row].cloneNode(false);
-            var height = $(sectionRows[row]).outerHeight();
-            rowElm.style.height = height + 'px';
-            rowElm.appendChild(sectionRows[row].children[columnIndex].cloneNode(true));
-            tableSection.appendChild(rowElm);
-        }
-        parentTable.appendChild(tableSection);
-    }
 
 })(jQuery);
