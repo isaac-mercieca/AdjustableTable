@@ -9,7 +9,7 @@
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/jquery-ui.min.js"></script>
-<script src="jquery.dragtable.js"></script>
+<script src="jquery.adjustableTable.js"></script>
 
 <!-- only for jquery.chili-2.2.js -->
 <script src="http://code.jquery.com/jquery-migrate-1.1.1.js"></script>
@@ -19,19 +19,19 @@
 <script type="text/javascript">
   $(document).ready(function() {
 
-    $('.defaultTable').dragtable();
+    $('.defaultTable').adjustableTable();
 
-    $('#footerTable').dragtable({excludeFooter:true});
+    $('#footerTable').adjustableTable({excludeFooter:true});
 
-    $('#onlyHeaderTable').dragtable({maxMovingRows:1});
+    $('#onlyHeaderTable').adjustableTable({maxMovingRows:1});
 
-    $('#persistTable').dragtable({persistState:'/someAjaxUrl'});
+    $('#persistTable').adjustableTable({persistState:'/someAjaxUrl'});
 
-    $('#handlerTable').dragtable({dragHandle:'.some-handle'});
+    $('#handlerTable').adjustableTable({dragHandle:'.some-handle'});
 
-    $('#constrainTable').dragtable({dragAccept:'.accept'});
+    $('#constrainTable').adjustableTable({dragAccept:'.accept'});
 
-    $('#customPersistTable').dragtable({persistState: function(table) {
+    $('#customPersistTable').adjustableTable({persistState: function(table) {
         table.el.find('th').each(function(i) {
           if(this.id != '') {table.sortOrder[this.id]=i;}
         });
@@ -40,7 +40,7 @@
       }
     });
 
-    $('#localStorageTable').dragtable({
+    $('#localStorageTable').adjustableTable({
         persistState: function(table) {
           if (!window.sessionStorage) return;
           var ss = window.sessionStorage;
@@ -56,7 +56,7 @@
 </script>
 
 
-<title>jquery.dragtable.js</title>
+<title>jquery.adjustableTable.js</title>
 </head>
 <body>
 <h1 id="akottr-header" class="header">

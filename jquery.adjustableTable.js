@@ -1,22 +1,28 @@
 /*!
- * dragtable
+ * Adjustable Table
  *
- * @Version 2.0.14
+ * @Version 0.0.1
  *
- * Copyright (c) 2010-2013, Andres akottr@gmail.com
+ * Copyright (c) 2016, Isaac Mercieca
  * Dual licensed under the MIT (MIT-LICENSE.txt)
  * and GPL (GPL-LICENSE.txt) licenses.
  *
- * Inspired by the the dragtable from Dan Vanderkam (danvk.org/dragtable/)
- * Thanks to the jquery and jqueryui comitters
+ * Inspired by the the dragtable from akottr (https://github.com/akottr/dragtable)
+ * Thanks to the jQuery and jQuery-UI committees
  *
  * Any comment, bug report, feature-request is welcome
  * Feel free to contact me.
  */
 
 (function ($) {
-    $.widget("akottr.dragtable", {
+    $.widget('isaacm.adjustableTable', {
         options: {
+            resizeable: true,
+            resizeAccept: null,          // resizeable cols -> default all
+            resizeCursor: 'e-resize',
+            beforeResizeStart: $.noop,
+            onResizeStop: $.noop,
+            draggable: true,
             revert: false,               // smooth revert
             dragHandle: '.table-handle', // handle for moving cols, if not exists the whole 'th' is the handle
             maxMovingRows: 40,           // 1 -> only header. 40 row should be enough, the rest is usually not in the viewport
@@ -32,10 +38,10 @@
             distance: 0,                 // @see http://api.jqueryui.com/sortable/#option-distance, for immediate feedback use "0"
             tolerance: 'pointer',        // @see http://api.jqueryui.com/sortable/#option-tolerance
             axis: 'x',                   // @see http://api.jqueryui.com/sortable/#option-axis, Only vertical moving is allowed. Use 'x' or null. Use this in conjunction with the 'containment' setting
-            beforeStart: $.noop,         // returning FALSE will stop the execution chain.
-            beforeMoving: $.noop,
-            beforeReorganize: $.noop,
-            beforeStop: $.noop
+            beforeDragStart: $.noop,     // returning FALSE will stop the execution chain.
+            beforeDragMove: $.noop,
+            beforeDragReorganize: $.noop,
+            beforeDragStop: $.noop
         },
         sortableTable: {
             el: $(),
@@ -123,11 +129,15 @@
                         }
                     }
                     _this._bubbleCols();
-                    _this.options.beforeStop(true, columnMapping);
+                    _this.options.beforeDragStop(true, columnMapping);
                 } else {
-                    _this.options.beforeStop(false);
+                    _this.options.beforeDragStop(false);
                 }
                 _this.sortableTable.el.remove();
+
+                // Make grid header visible again for resizable option
+                $(_this.element).find('> thead > tr > th > div.grip-header').css('visibility', 'visible');
+
                 _this._restoreTextSelection();
                 // persist state if necessary
                 if (_this.options.persistState !== null) {
@@ -147,7 +157,7 @@
                 _this._selectedHandle.removeClass('dragtable-handle-selected');
                 // add disabled class -> reorganisation starts soon
                 _this.sortableTable.el.sortable('disable').addClass('dragtable-disabled');
-                _this.options.beforeReorganize();
+                _this.options.beforeDragReorganize();
                 // do reorganisation asynchronous
                 // for chrome a little bit more than 1 ms because we want to force a re-render
                 _this._endIndex = _this.sortableTable.movingRow.prevAll().size() + 1;
@@ -208,6 +218,7 @@
                 sortableTableLi.style.width = columnWidth + 'px';
 
                 var sortableTable = tempSortableTable.cloneNode(false);
+                sortableTable.style.width = sortableTableLi.style.width;
 
                 if (tableHeaderRows !== null) {
                     _this._cloneTableColumn(sortableTable, 'thead', tableHeaderRows, columnIndex);
@@ -231,7 +242,7 @@
                 };
             });
 
-            if (this.options.exact) {
+            if ( this.options.exact ) {
                 var difference = totalWidth - this.element.outerWidth();
                 var firstColumnLi = sortableUl.children[0];
                 var width = parseInt(firstColumnLi.style.width) - difference;
@@ -267,13 +278,16 @@
             // assign start index
             this._startIndex = $(e.target).closest('th').prevAll().size() + 1;
 
-            this.options.beforeMoving();
+            this.options.beforeDragMove();
 
             // Start moving by delegating the original event to the new sortable table
             this.sortableTable.movingRow = this.sortableTable.el.children('li:nth-child(' + this._startIndex + ')');
 
             // prevent the user from drag selecting "highlighting" surrounding page elements
             this._disableTextSelection();
+
+            // Hide the grip headers for the resizable option
+            $(this.element).find('thead > tr > th > div.grip-header').css('visibility', 'hidden');
 
             // clone the initial event and trigger the sort with it
             this.sortableTable.movingRow.trigger($.extend($.Event(e.type), {
@@ -288,7 +302,72 @@
 
         },
 
-        _create: function () {
+        _createResizable: function () {
+            var _this = this;
+
+            var headerRowElm = this.element.children('thead').children('tr');
+            headerRowElm.children('th').each(function () {
+                if (!this.style.width) {
+                    this.style.width = this.offsetWidth + 'px';
+                }
+            });
+
+            var rowHeight = headerRowElm.outerHeight();
+
+            var headerSelect = this.options.resizeAccept === null ? 'th' : $.trim(this.options.resizeAccept);
+
+            headerRowElm.children(headerSelect).each(function () {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'grip-header';
+                wrapper.innerHTML = this.innerHTML;
+                wrapper.style.height = rowHeight + 'px';
+
+                var grip = document.createElement('span');
+                grip.className = 'grip';
+                grip.style.cursor = _this.options.resizeCursor;
+                grip.style.height = wrapper.style.height;
+                grip.style.marginTop = '-' + $(this).css('paddingTop');
+                grip.style.marginRight = '-' + (parseInt($(this).css('paddingRight')) + 2) + 'px';
+                grip.innerHTML = '&nbsp';
+
+                $(grip).mousedown(function (e) {
+                    if (e.which === 1 ) {
+
+                        if (_this.options.beforeResizeStart() === false) {
+                            return;
+                        }
+
+                        e.preventDefault();
+                        var dragX = e.clientX;
+                        var headerElm = $(this).closest('th');
+                        var tableElm = headerElm.closest('table');
+                        document.body.style.cursor = _this.options.resizeCursor;
+
+                        $(document).mousemove(function (e) {
+                            var posX = e.clientX;
+                            var originalWidth = headerElm.outerWidth();
+                            var newWidth = originalWidth + e.clientX - dragX;
+                            if (newWidth > 0) { // Just in case the user moves his mouse too fast
+                                headerElm.css('width', newWidth + 'px');
+                                tableElm.css('width', (tableElm.outerWidth() + posX - dragX) + 'px');
+                            }
+                            dragX = e.clientX;
+                        }).mouseup(function (e) {
+                            document.body.style.cursor = 'default';
+                            _this.options.onResizeStop(headerElm);
+                            // Unbind mouse events
+                            $(document).unbind('mousemove');
+                        });
+
+                    }
+                });
+                wrapper.appendChild(grip);
+
+                $(this).empty().css({'vertical-align': 'top', 'overflowX': 'hidden', 'wordWrap': 'break-word'}).append(wrapper);
+            });
+        },
+
+        _createDraggable: function () {
             // initialize global variables
             this._startIndex = 0;
             this._endIndex = 0;
@@ -324,13 +403,13 @@
 
             this._bindTo.mousedown(function (evt) {
                 // listen only to left mouse click
-                if (evt.which === 1) {
+                if (evt.which === 1 && (!_this.options.resizeable || (_this.options.resizeable && evt.target.nodeName != 'span' && evt.target.className != 'grip'))) {
 
-                    if (_this.options.beforeStart() === false) {
+                    if ( _this.options.beforeDragStart() === false ) {
                         return;
                     }
 
-                    clearTimeout(_this.downTimer);
+                    clearTimeout( _this.downTimer );
 
                     var srcElement = evt.target ? evt.target : evt.srcElement;
 
@@ -344,7 +423,26 @@
             }).mouseup(function () {
                 clearTimeout(_this.downTimer);
             });
+        },
 
+        _create: function () {
+            if ( this.element.is('table') ) {
+
+                this.element.on('dragstart', function ( evt ) {
+                    evt.preventDefault();
+                });
+
+                if ( this.options.resizeable ) {
+                    this._createResizable();
+                }
+
+                if ( this.options.draggable ) {
+                    this._createDraggable();
+                }
+
+            } else {
+                $.error('Element is not a table');
+            }
         },
 
         _swapNodes: function (a, b) {

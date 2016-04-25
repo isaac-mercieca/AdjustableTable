@@ -50,3 +50,17 @@
     -webkit-user-select: none;
     user-select: none;
 }
+
+.grip-header {
+    position: relative;
+    word-wrap: break-word;
+}
+
+.grip {
+    position: absolute;
+    top: 0;
+    right: 0;
+    float: right;
+    z-index: 5;
+    width: 5px;
+}
